@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Traffic Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .home-bg {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(0, 0, 0, 0.8) 100%), 
+                        url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="%231e293b"/><circle cx="200" cy="150" r="3" fill="%23fbbf24"/><circle cx="400" cy="200" r="2" fill="%23fbbf24"/><circle cx="600" cy="180" r="2.5" fill="%23fbbf24"/><circle cx="800" cy="250" r="2" fill="%23fbbf24"/><circle cx="1000" cy="220" r="3" fill="%23fbbf24"/><rect x="100" y="400" width="1000" height="200" fill="%23374151"/><rect x="150" y="450" width="80" height="100" fill="%23ef4444"/><rect x="250" y="450" width="80" height="100" fill="%23eab308"/><rect x="350" y="450" width="80" height="100" fill="%2322c55e"/><rect x="500" y="450" width="80" height="100" fill="%23ef4444"/><rect x="600" y="450" width="80" height="100" fill="%23eab308"/><rect x="700" y="450" width="80" height="100" fill="%2322c55e"/><rect x="800" y="450" width="80" height="100" fill="%23ef4444"/><rect x="900" y="450" width="80" height="100" fill="%23eab308"/><rect x="1000" y="450" width="80" height="100" fill="%2322c55e"/></svg>');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .nav-tab {
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .nav-tab:hover {
+            transform: translateY(-2px);
+        }
+        
+        .nav-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .nav-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 2px;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .floating-card {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .processing-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .processing-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .traffic-light {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .traffic-light.red { background-color: #ef4444; box-shadow: 0 0 20px #ef4444; }
+        .traffic-light.yellow { background-color: #eab308; box-shadow: 0 0 20px #eab308; }
+        .traffic-light.green { background-color: #22c55e; box-shadow: 0 0 20px #22c55e; }
+        .traffic-light.off { background-color: #6b7280; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Processing Overlay -->
+    <div id="processing-overlay" class="processing-overlay">
+        <div class="processing-content">
+            <div class="text-3xl mb-4">🚦</div>
+            <h3 class="text-xl font-bold mb-2">Processing Video</h3>
+            <p id="processing-status" class="text-gray-600 mb-4">Initializing...</p>
+            <div class="progress-bar">
+                <div id="progress-fill" class="progress-fill"></div>
+            </div>
+            <div id="progress-text" class="text-sm text-gray-500">0%</div>
+        </div>
+    </div>
+
+    <!-- Home Page -->
+    <div id="home-page" class="page active home-bg min-h-screen flex items-center justify-center">
+        <div class="text-center text-white px-4 max-w-4xl mx-auto fade-in">
+            <div class="glass-card rounded-3xl p-12 floating-card">
+                <h1 class="text-6xl md:text-8xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    Smart Traffic Management System
+                </h1>
+                <h2 class="text-2xl md:text-3xl font-medium mb-8 text-blue-200">
+                    AI-powered traffic control for smarter cities
+                </h2>
+                <p class="text-lg md:text-xl mb-12 text-gray-200 max-w-3xl mx-auto leading-relaxed">
+                    Revolutionizing urban mobility through intelligent traffic analysis and adaptive signal control.
+                </p>
+                <button class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-5 px-10 rounded-full text-xl shadow-2xl transition-all duration-300 hover:transform hover:scale-110 hover:shadow-3xl" onclick="showDashboard()">
+                    🚀 Get Started
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Page -->
+    <div id="dashboard-page" class="page">
+        <!-- Navigation Bar -->
+        <nav class="bg-white/90 backdrop-blur-lg shadow-2xl fixed w-full top-0 z-50 border-b border-gray-200">
+            <div class="container mx-auto px-6">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="text-3xl">🚦</div>
+                        <div>
+                            <span class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">STMS</span>
+                            <div class="text-sm text-gray-500">Dashboard</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex space-x-1 bg-gray-100 p-1 rounded-xl">
+                        <button class="nav-tab px-6 py-3 rounded-lg font-medium text-gray-600" onclick="showTab('overview')">
+                            📊 Overview
+                        </button>
+                        <button class="nav-tab px-6 py-3 rounded-lg font-medium text-gray-600" onclick="showTab('traffic-analysis')">
+                            🚗 Traffic Analysis
+                        </button>
+                        <button class="nav-tab px-6 py-3 rounded-lg font-medium text-gray-600" onclick="showTab('vehicle-detection')">
+                            📹 Vehicle Detection
+                        </button>
+                        <button class="nav-tab px-6 py-3 rounded-lg font-medium text-gray-600" onclick="showTab('signal-simulation')">
+                            🚦 Signal Simulation
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Dashboard Content -->
+        <div class="pt-24 pb-8">
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content active">
+                <div class="container mx-auto px-6">
+                    <div class="text-center mb-12">
+                        <h1 class="text-4xl font-bold text-gray-800 mb-4">Welcome to STMS Dashboard</h1>
+                        <p class="text-xl text-gray-600">Select a tab from the navigation above to get started</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:transform hover:scale-105">
+                            <div class="text-4xl mb-4">📊</div>
+                            <h3 class="text-xl font-bold mb-2">Traffic Analysis</h3>
+                            <p class="text-blue-100">Real-time traffic monitoring and analytics</p>
+                        </div>
+                        
+                        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:transform hover:scale-105">
+                            <div class="text-4xl mb-4">📹</div>
+                            <h3 class="text-xl font-bold mb-2">Vehicle Detection</h3>
+                            <p class="text-green-100">AI-powered video analysis and detection</p>
+                        </div>
+                        
+                        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:transform hover:scale-105">
+                            <div class="text-4xl mb-4">🚦</div>
+                            <h3 class="text-xl font-bold mb-2">Signal Simulation</h3>
+                            <p class="text-purple-100">Virtual traffic light control system</p>
+                        </div>
+                        
+                        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:transform hover:scale-105">
+                            <div class="text-4xl mb-4">📈</div>
+                            <h3 class="text-xl font-bold mb-2">Performance</h3>
+                            <p class="text-orange-100">System metrics and optimization</p>
+                        </div>
+                    </div>
+
+                    <!-- Backend Status -->
+                    <div class="mt-12 bg-white rounded-2xl shadow-xl p-8">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-6">🔌 Backend Connection Status</h2>
+                        <div class="flex items-center space-x-4">
+                            <div id="backend-status" class="w-4 h-4 rounded-full bg-gray-400"></div>
+                            <span id="backend-status-text" class="text-gray-600">Checking connection...</span>
+                        </div>
+                        <div class="mt-4 text-sm text-gray-500">
+                            <p>Backend URL: <span id="backend-url" class="font-mono">http://localhost:5000</span></p>
+                            <p>Mode: <span id="backend-mode" class="font-mono">Unknown</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Traffic Analysis Tab -->
+            <div id="traffic-analysis" class="tab-content">
+                <div class="container mx-auto px-6">
+                    <div class="bg-white rounded-2xl shadow-xl p-8">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-6">🚗 Traffic Analysis</h2>
+                        
+                        <!-- Live Data Display -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+                            <div class="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200">
+                                <div class="text-4xl font-bold text-blue-600 mb-2" id="countA">0</div>
+                                <div class="text-lg text-blue-700 font-medium">Lane A</div>
+                                <div class="text-sm text-blue-600" id="signalA">Red</div>
+                            </div>
+                            <div class="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200">
+                                <div class="text-4xl font-bold text-green-600 mb-2" id="countB">0</div>
+                                <div class="text-lg text-green-700 font-medium">Lane B</div>
+                                <div class="text-sm text-green-600" id="signalB">Red</div>
+                            </div>
+                            <div class="text-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200">
+                                <div class="text-4xl font-bold text-purple-600 mb-2" id="countC">0</div>
+                                <div class="text-lg text-purple-700 font-medium">Lane C</div>
+                                <div class="text-sm text-purple-600" id="signalC">Red</div>
+                            </div>
+                            <div class="text-center p-6 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border-2 border-orange-200">
+                                <div class="text-4xl font-bold text-orange-600 mb-2" id="countD">0</div>
+                                <div class="text-lg text-orange-700 font-medium">Lane D</div>
+                                <div class="text-sm text-orange-600" id="signalD">Red</div>
+                            </div>
+                        </div>
+
+                        <!-- Traffic Chart -->
+                        <div class="bg-gray-50 rounded-xl p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">Traffic Density Chart</h3>
+                            <div class="h-80">
+                                <canvas id="trafficChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Control Buttons -->
+                        <div class="mt-6 flex flex-wrap gap-4">
+                            <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition duration-200" onclick="refreshTrafficData()">
+                                🔄 Refresh Data
+                            </button>
+                            <button class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition duration-200" onclick="startLiveUpdates()">
+                                ▶️ Start Live Updates
+                            </button>
+                            <button class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition duration-200" onclick="stopLiveUpdates()">
+                                ⏹️ Stop Live Updates
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vehicle Detection Tab -->
+            <div id="vehicle-detection" class="tab-content">
+                <div class="container mx-auto px-6">
+                    <div class="bg-white rounded-2xl shadow-xl p-8">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-6">📹 Vehicle Detection</h2>
+                        
+                        <!-- Video Upload Section -->
+                        <div class="max-w-4xl mx-auto mb-8">
+                            <div class="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-300" onclick="document.getElementById('videoInput').click()">
+                                <div class="text-gray-500">
+                                    <svg class="mx-auto h-20 w-20 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                    </svg>
+                                    <p class="text-2xl font-medium mb-2">Click to upload traffic video</p>
+                                    <p class="text-gray-400">or drag and drop</p>
+                                    <p class="text-sm text-gray-400 mt-2">Supported: MP4, AVI, MOV, MKV</p>
+                                </div>
+                            </div>
+                            <input type="file" id="videoInput" accept="video/*" class="hidden" onchange="handleVideoUpload(event)">
+                            
+                            <div class="mt-6">
+                                <button id="processBtn" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-4 px-6 rounded-xl transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-lg" onclick="processVideo()" disabled>
+                                    🔄 Process Video
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Video Display Section -->
+                        <div id="video-display-section" class="hidden">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">🎥 Processed Video Results</h3>
+                            <div class="bg-gray-50 rounded-xl p-6">
+                                <div id="video-results" class="text-center">
+                                    <!-- Results will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signal Simulation Tab -->
+            <div id="signal-simulation" class="tab-content">
+                <div class="container mx-auto px-6">
+                    <div class="bg-white rounded-2xl shadow-xl p-8">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-6">🚦 Signal Simulation</h2>
+                        
+                        <!-- Traffic Lights Display -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+                            <div class="text-center">
+                                <div class="mb-4">
+                                    <div class="traffic-light red mx-auto" id="lightA-red"></div>
+                                    <div class="traffic-light off mx-auto" id="lightA-yellow"></div>
+                                    <div class="traffic-light off mx-auto" id="lightA-green"></div>
+                                </div>
+                                <div class="text-lg font-medium text-gray-700">Lane A</div>
+                                <div class="text-sm text-gray-500" id="timingA">15s</div>
+                            </div>
+                            
+                            <div class="text-center">
+                                <div class="mb-4">
+                                    <div class="traffic-light red mx-auto" id="lightB-red"></div>
+                                    <div class="traffic-light off mx-auto" id="lightB-yellow"></div>
+                                    <div class="traffic-light off mx-auto" id="lightB-green"></div>
+                                </div>
+                                <div class="text-lg font-medium text-gray-700">Lane B</div>
+                                <div class="text-sm text-gray-500" id="timingB">15s</div>
+                            </div>
+                            
+                            <div class="text-center">
+                                <div class="mb-4">
+                                    <div class="traffic-light red mx-auto" id="lightC-red"></div>
+                                    <div class="traffic-light off mx-auto" id="lightC-yellow"></div>
+                                    <div class="traffic-light off mx-auto" id="lightC-green"></div>
+                                </div>
+                                <div class="text-lg font-medium text-gray-700">Lane C</div>
+                                <div class="text-sm text-gray-500" id="timingC">15s</div>
+                            </div>
+                            
+                            <div class="text-center">
+                                <div class="mb-4">
+                                    <div class="traffic-light red mx-auto" id="lightC-red"></div>
+                                    <div class="traffic-light off mx-auto" id="lightC-yellow"></div>
+                                    <div class="traffic-light off mx-auto" id="lightC-green"></div>
+                                </div>
+                                <div class="text-lg font-medium text-gray-700">Lane D</div>
+                                <div class="text-sm text-gray-500" id="timingD">15s</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Manual Control Buttons -->
+                        <div class="text-center">
+                            <button class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-lg mr-3" onclick="setLaneGreen('A')">
+                                Set Lane A Green
+                            </button>
+                            <button class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-lg mr-3" onclick="setLaneGreen('B')">
+                                Set Lane B Green
+                            </button>
+                            <button class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-lg mr-3" onclick="setLaneGreen('C')">
+                                Set Lane C Green
+                            </button>
+                            <button class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-lg" onclick="setLaneGreen('D')">
+                                Set Lane D Green
+                            </button>
+                        </div>
+
+                        <!-- Auto Mode Toggle -->
+                        <div class="mt-8 text-center">
+                            <button id="autoModeBtn" class="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg" onclick="toggleAutoMode()">
+                                🚦 Enable Auto Mode
+                            </button>
+                            <p class="text-sm text-gray-600 mt-2">Auto mode will cycle signals based on traffic density</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const BACKEND_URL = 'http://localhost:5000';
+        let trafficChart;
+        let liveUpdateInterval;
+        let autoModeInterval;
+        let currentVideoFile = null;
+        let isAutoMode = false;
+
+        // Page Navigation
+        function showDashboard() {
+            document.getElementById('home-page').classList.remove('active');
+            document.getElementById('dashboard-page').classList.add('active');
+            initializeDashboard();
+        }
+
+        // Tab Navigation
+        function showTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Update navigation active state
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Find and activate the clicked nav tab
+            const activeTab = Array.from(document.querySelectorAll('.nav-tab')).find(tab => {
+                return tab.textContent.toLowerCase().includes(tabId.replace('-', ' '));
+            });
+            if (activeTab) {
+                activeTab.classList.add('active');
+            }
+
+            // Initialize specific tab content
+            if (tabId === 'traffic-analysis') {
+                initializeTrafficChart();
+            }
+        }
+
+        // Initialize Dashboard
+        function initializeDashboard() {
+            checkBackendConnection();
+            refreshTrafficData();
+        }
+
+        // Check Backend Connection
+        async function checkBackendConnection() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/health`);
+                const data = await response.json();
+                
+                if (data.status === 'healthy') {
+                    document.getElementById('backend-status').className = 'w-4 h-4 rounded-full bg-green-500';
+                    document.getElementById('backend-status-text').textContent = 'Connected';
+                    document.getElementById('backend-mode').textContent = data.mode;
+                } else {
+                    throw new Error('Backend not healthy');
+                }
+            } catch (error) {
+                document.getElementById('backend-status').className = 'w-4 h-4 rounded-full bg-red-500';
+                document.getElementById('backend-status-text').textContent = 'Disconnected';
+                document.getElementById('backend-mode').textContent = 'Unknown';
+                console.error('Backend connection failed:', error);
+            }
+        }
+
+        // Refresh Traffic Data
+        async function refreshTrafficData() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/traffic_data`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateTrafficDisplay(data.data);
+                    updateTrafficLights(data.data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch traffic data:', error);
+            }
+        }
+
+        // Update Traffic Display
+        function updateTrafficDisplay(trafficData) {
+            // Update counts
+            document.getElementById('countA').textContent = trafficData.laneA.count;
+            document.getElementById('countB').textContent = trafficData.laneB.count;
+            document.getElementById('countC').textContent = trafficData.laneC.count;
+            document.getElementById('countD').textContent = trafficData.laneD.count;
+
+            // Update signals
+            document.getElementById('signalA').textContent = trafficData.laneA.signal;
+            document.getElementById('signalB').textContent = trafficData.laneB.signal;
+            document.getElementById('signalC').textContent = trafficData.laneC.signal;
+            document.getElementById('signalD').textContent = trafficData.laneD.signal;
+
+            // Update chart if it exists
+            if (trafficChart) {
+                trafficChart.data.datasets[0].data = [
+                    trafficData.laneA.count,
+                    trafficData.laneB.count,
+                    trafficData.laneC.count,
+                    trafficData.laneD.count
+                ];
+                trafficChart.update();
+            }
+        }
+
+        // Update Traffic Lights
+        function updateTrafficLights(trafficData) {
+            const lanes = ['A', 'B', 'C', 'D'];
+            
+            lanes.forEach(lane => {
+                const laneData = trafficData[`lane${lane}`];
+                
+                // Update timing display
+                document.getElementById(`timing${lane}`).textContent = `${laneData.time}s`;
+                
+                // Update light states
+                if (laneData.signal === 'Green') {
+                    document.getElementById(`light${lane}-green`).className = 'traffic-light green mx-auto';
+                    document.getElementById(`light${lane}-red`).className = 'traffic-light off mx-auto';
+                    document.getElementById(`light${lane}-yellow`).className = 'traffic-light off mx-auto';
+                } else if (laneData.signal === 'Yellow') {
+                    document.getElementById(`light${lane}-yellow`).className = 'traffic-light yellow mx-auto';
+                    document.getElementById(`light${lane}-red`).className = 'traffic-light off mx-auto';
+                    document.getElementById(`light${lane}-green`).className = 'traffic-light off mx-auto';
+                } else {
+                    document.getElementById(`light${lane}-red`).className = 'traffic-light red mx-auto';
+                    document.getElementById(`light${lane}-yellow`).className = 'traffic-light off mx-auto';
+                    document.getElementById(`light${lane}-green`).className = 'traffic-light off mx-auto';
+                }
+            });
+        }
+
+        // Initialize Traffic Chart
+        function initializeTrafficChart() {
+            const ctx = document.getElementById('trafficChart');
+            if (!ctx) return;
+
+            trafficChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Lane A', 'Lane B', 'Lane C', 'Lane D'],
+                    datasets: [{
+                        label: 'Vehicle Count',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(34, 197, 94, 0.8)',
+                            'rgba(147, 51, 234, 0.8)',
+                            'rgba(249, 115, 22, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(59, 130, 246, 1)',
+                            'rgba(34, 197, 94, 1)',
+                            'rgba(147, 51, 234, 1)',
+                            'rgba(249, 115, 22, 1)'
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Start Live Updates
+        function startLiveUpdates() {
+            if (liveUpdateInterval) {
+                clearInterval(liveUpdateInterval);
+            }
+            
+            liveUpdateInterval = setInterval(refreshTrafficData, 5000);
+            console.log('Live updates started');
+        }
+
+        // Stop Live Updates
+        function stopLiveUpdates() {
+            if (liveUpdateInterval) {
+                clearInterval(liveUpdateInterval);
+                liveUpdateInterval = null;
+                console.log('Live updates stopped');
+            }
+        }
+
+        // Toggle Auto Mode
+        function toggleAutoMode() {
+            isAutoMode = !isAutoMode;
+            const btn = document.getElementById('autoModeBtn');
+            
+            if (isAutoMode) {
+                btn.textContent = '🚦 Disable Auto Mode';
+                btn.className = 'bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-lg';
+                startAutoMode();
+            } else {
+                btn.textContent = '🚦 Enable Auto Mode';
+                btn.className = 'bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg';
+                stopAutoMode();
+            }
+        }
+
+        // Start Auto Mode
+        function startAutoMode() {
+            if (autoModeInterval) {
+                clearInterval(autoModeInterval);
+            }
+            
+            autoModeInterval = setInterval(async () => {
+                try {
+                    // Simulate traffic changes
+                    const response = await fetch(`${BACKEND_URL}/simulate_traffic`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            lane: ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)],
+                            count: Math.floor(Math.random() * 20) + 5
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        refreshTrafficData();
+                    }
+                } catch (error) {
+                    console.error('Auto mode error:', error);
+                }
+            }, 10000); // Change every 10 seconds
+        }
+
+        // Stop Auto Mode
+        function stopAutoMode() {
+            if (autoModeInterval) {
+                clearInterval(autoModeInterval);
+                autoModeInterval = null;
+            }
+        }
+
+        // Video Upload Functions
+        function handleVideoUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('video/')) {
+                currentVideoFile = file;
+                document.getElementById('processBtn').disabled = false;
+                
+                // Show file info
+                const fileInfo = document.createElement('div');
+                fileInfo.className = 'mt-4 p-4 bg-blue-50 rounded-lg';
+                fileInfo.innerHTML = `
+                    <p class="text-blue-800"><strong>Selected:</strong> ${file.name}</p>
+                    <p class="text-blue-600 text-sm">Size: ${(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                    <p class="text-blue-600 text-sm">Type: ${file.type}</p>
+                `;
+                
+                // Remove existing file info
+                const existingInfo = document.querySelector('.bg-blue-50');
+                if (existingInfo) {
+                    existingInfo.remove();
+                }
+                
+                document.getElementById('processBtn').parentNode.appendChild(fileInfo);
+            }
+        }
+
+        // Process Video
+        async function processVideo() {
+            if (!currentVideoFile) {
+                alert('Please select a video file first');
+                return;
+            }
+
+            // Show processing overlay
+            document.getElementById('processing-overlay').style.display = 'flex';
+            document.getElementById('processing-status').textContent = 'Uploading video...';
+            document.getElementById('progress-fill').style.width = '10%';
+            document.getElementById('progress-text').textContent = '10%';
+
+            try {
+                const formData = new FormData();
+                formData.append('video', currentVideoFile);
+
+                // Start progress monitoring
+                const progressInterval = setInterval(async () => {
+                    try {
+                        const statusResponse = await fetch(`${BACKEND_URL}/processing_status`);
+                        const statusData = await statusResponse.json();
+                        
+                        if (statusData.status === 'processing') {
+                            document.getElementById('progress-fill').style.width = `${statusData.progress}%`;
+                            document.getElementById('progress-text').textContent = `${statusData.progress}%`;
+                            document.getElementById('processing-status').textContent = `Processing video... ${statusData.progress}%`;
+                        } else if (statusData.status === 'completed') {
+                            document.getElementById('progress-fill').style.width = '100%';
+                            document.getElementById('progress-text').textContent = '100%';
+                            document.getElementById('processing-status').textContent = 'Processing completed!';
+                            clearInterval(progressInterval);
+                            
+                            // Hide overlay after a delay
+                            setTimeout(() => {
+                                document.getElementById('processing-overlay').style.display = 'none';
+                            }, 2000);
+                        }
+                    } catch (error) {
+                        console.error('Status check failed:', error);
+                    }
+                }, 1000);
+
+                // Send video for processing
+                const response = await fetch(`${BACKEND_URL}/process_video`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Update traffic data
+                    updateTrafficDisplay(result.signals);
+                    updateTrafficLights(result.signals);
+                    
+                    // Show results
+                    showVideoResults(result);
+                    
+                    // Refresh data
+                    refreshTrafficData();
+                } else {
+                    throw new Error(result.message || 'Video processing failed');
+                }
+
+            } catch (error) {
+                console.error('Video processing error:', error);
+                document.getElementById('processing-status').textContent = `Error: ${error.message}`;
+                
+                setTimeout(() => {
+                    document.getElementById('processing-overlay').style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // Show Video Results
+        function showVideoResults(result) {
+            const resultsDiv = document.getElementById('video-results');
+            resultsDiv.innerHTML = `
+                <div class="text-center">
+                    <div class="text-6xl mb-4">✅</div>
+                    <h4 class="text-xl font-bold text-green-600 mb-2">Video Processed Successfully!</h4>
+                    <p class="text-gray-600 mb-4">${result.message}</p>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-blue-600">${result.vehicle_counts.laneA}</div>
+                            <div class="text-sm text-blue-600">Lane A</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-green-600">${result.vehicle_counts.laneB}</div>
+                            <div class="text-sm text-green-600">Lane B</div>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-purple-600">${result.vehicle_counts.laneC}</div>
+                            <div class="text-sm text-purple-600">Lane C</div>
+                        </div>
+                        <div class="bg-orange-50 p-4 rounded-lg">
+                            <div class="text-2xl font-bold text-orange-600">${result.vehicle_counts.laneD}</div>
+                            <div class="text-sm text-orange-600">Lane D</div>
+                        </div>
+                    </div>
+                    
+                    <p class="text-sm text-gray-500">Traffic signals have been updated based on vehicle density</p>
+                </div>
+            `;
+            
+            document.getElementById('video-display-section').classList.remove('hidden');
+        }
+
+        // Traffic Light Control
+        async function setLaneGreen(lane) {
+            try {
+                // Turn off all lights first
+                ['A', 'B', 'C', 'D'].forEach(l => {
+                    document.getElementById(`light${l}-red`).className = 'traffic-light red mx-auto';
+                    document.getElementById(`light${l}-yellow`).className = 'traffic-light off mx-auto';
+                    document.getElementById(`light${l}-green`).className = 'traffic-light off mx-auto';
+                });
+                
+                // Set selected lane to green
+                document.getElementById(`light${lane}-green`).className = 'traffic-light green mx-auto';
+                document.getElementById(`light${lane}-red`).className = 'traffic-light off mx-auto';
+                
+                // Update backend
+                const response = await fetch(`${BACKEND_URL}/simulate_traffic`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        lane: lane,
+                        count: Math.floor(Math.random() * 15) + 10
+                    })
+                });
+                
+                if (response.ok) {
+                    refreshTrafficData();
+                }
+            } catch (error) {
+                console.error('Error setting lane green:', error);
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial state - all red
+            ['A', 'B', 'C', 'D'].forEach(lane => {
+                document.getElementById(`light${lane}-red`).className = 'traffic-light red mx-auto';
+                document.getElementById(`light${lane}-yellow`).className = 'traffic-light off mx-auto';
+                document.getElementById(`light${lane}-green`).className = 'traffic-light off mx-auto';
+            });
+        });
+    </script>
+</body>
+</html>
